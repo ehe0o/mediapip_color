@@ -20,6 +20,10 @@ options = ImageSegmenterOptions(
 # 카테고리 정의
 category = ["background", "hair", "body-skin", "face-skin", "clothes", "others"]
 
+def extract_average_color(image, mask):
+    masked = cv2.bitwise_and(image, image, mask=mask)
+    average_color = cv2.mean(masked, mask=mask)
+    return average_color[:3]
 
 with ImageSegmenter.create_from_options(options) as segmenter:
 
@@ -37,6 +41,10 @@ with ImageSegmenter.create_from_options(options) as segmenter:
     # 결과값에서 category_mask 속성 가져오기
     category_mask = segmented_masks.category_mask
     category_mask_np = category_mask.numpy_view()
+
+    hair_mask = np.where(category_mask_np == 1, 255, 0).astype(np.uint8)
+    average_hair_color = extract_average_color(original_image, hair_mask)
+    print(f"Hair Average Color: {average_hair_color}")
 
     # 각 카테고리 존재 여부 확인
     for i in range(len(category)):

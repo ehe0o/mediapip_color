@@ -120,7 +120,7 @@ def apply_mask_on_image(image, mask, color=(0, 255, 0)):
 
 with FaceLandmarker.create_from_options(fl_options) as landmarker:
     # 이미지 불러오기
-    mp_image = mp.Image.create_from_file('../image/sample3.jpg')
+    mp_image = mp.Image.create_from_file('../image/sample2.png')
     numpy_image = mp_image.numpy_view()
 
     # 랜드마크 검출
