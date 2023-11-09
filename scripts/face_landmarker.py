@@ -26,6 +26,9 @@ IRIS_LANDMARKS = {
     'right': [473, 474, 475, 476, 477]
 }
 
+EYEBROW_LANDMARKS = [[70, 63, 105, 66, 107, 55, 65, 52, 53, 46], [336, 296, 334, 293, 300, 276, 283, 282, 295, 285]]  # 각 눈썹에 대한 랜드마크 인덱스 리스트
+LIPS_LANDMARKS = [...]
+
 def draw_landmarks_on_image(rgb_image, detection_result):
   face_landmarks_list = detection_result.face_landmarks
   annotated_image = np.copy(rgb_image)
@@ -76,6 +79,12 @@ def draw_landmarks_on_image(rgb_image, detection_result):
 
   return annotated_image
 
+def create_polygon_mask(image, landmarks, indices_list):
+    mask = np.zeros(image.shape[:2], dtype=np.uint8)
+    for indices in indices_list:
+        pts = np.array([landmarks[i] for i in indices], dtype=np.int32)
+        cv2.fillPoly(mask, [pts], color=(255))
+    return mask
 
 def calculate_iris_radius(iris_landmarks):
     # 홍채 중심과 주변 랜드마크 간의 거리를 기반으로 평균 반지름을 계산합니다.
@@ -138,7 +147,7 @@ with FaceLandmarker.create_from_options(fl_options) as landmarker:
         # 홍채 마스크 생성을 위한 랜드마크 포인트 리스트 생성
         left_iris_points = [face_landmarks[i] for i in IRIS_LANDMARKS['left']]
         right_iris_points = [face_landmarks[i] for i in IRIS_LANDMARKS['right']]
-        print(left_iris_points)
+
         # 홍채 마스크 생성
         left_iris_mask = create_iris_mask(bgr_image, left_iris_points)
         right_iris_mask = create_iris_mask(bgr_image, right_iris_points)
@@ -147,21 +156,14 @@ with FaceLandmarker.create_from_options(fl_options) as landmarker:
         left_iris_color = extract_iris_color(bgr_image, left_iris_mask)
         right_iris_color = extract_iris_color(bgr_image, right_iris_mask)
 
-        # 홍채 마스크를 이미지에 적용
-        masked_left_iris_image = apply_mask_on_image(bgr_image, left_iris_mask, color=(0, 255, 0))  # 녹색으로 마스크 영역 표시
-        masked_right_iris_image = apply_mask_on_image(bgr_image, right_iris_mask, color=(0, 0, 255))  # 파란색으로 마스크 영역 표시
 
         # 추출된 색상 값 출력
         print(f"Left Iris Color: {left_iris_color}")
         print(f"Right Iris Color: {right_iris_color}")
 
-        # 검출된 랜드마크를 이미지에 그립니다.
         annotated_image = draw_landmarks_on_image(bgr_image, face_landmarker_result)
 
-        # 그린 랜드마크가 포함된 이미지를 화면에 표시합니다.
         cv2.imshow('Annotated Image', annotated_image)
-        cv2.imshow('Masked Left Iris Image', masked_left_iris_image)
-        cv2.imshow('Masked Right Iris Image', masked_right_iris_image)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
     else:
