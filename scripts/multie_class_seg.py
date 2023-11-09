@@ -28,7 +28,7 @@ def extract_average_color(image, mask):
 with ImageSegmenter.create_from_options(options) as segmenter:
 
     # 이미지 불러오기
-    mp_image = mp.Image.create_from_file('../image/sample3.jpg')
+    mp_image = mp.Image.create_from_file('../image/sample2.png')
 
     # 원본 이미지 가져오기 (알파 채널 제거)
     original_image = mp_image.numpy_view()
@@ -51,7 +51,7 @@ with ImageSegmenter.create_from_options(options) as segmenter:
     average_skin_color2 = extract_average_color(original_image, skin2_mask)
     average_skin_color_sum = extract_average_color(original_image, skin_sum_mask)
 
-    print(f"Hair: {average_hair_color}, Skin:{average_skin_color_sum}")
+    print(f"Hair: {average_hair_color}, Skin_sum:{average_skin_color_sum}, Face :{average_skin_color2}, Body:{average_skin_color}")
 
     # 각 카테고리 존재 여부 확인
     for i in range(len(category)):

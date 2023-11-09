@@ -25,9 +25,14 @@ IRIS_LANDMARKS = {
     'left': [468, 469, 470, 471, 472],
     'right': [473, 474, 475, 476, 477]
 }
-
-EYEBROW_LANDMARKS = [[70, 63, 105, 66, 107, 55, 65, 52, 53, 46], [336, 296, 334, 293, 300, 276, 283, 282, 295, 285]]  # 각 눈썹에 대한 랜드마크 인덱스 리스트
-LIPS_LANDMARKS = [...]
+EYEBROW_LANDMARKS = {
+    'left':[70, 63, 105, 66, 107, 55, 65, 52, 53, 46],
+    'right':[336, 296, 334, 293, 300, 276, 283, 282, 295, 285]
+}
+LIPS_LANDMARKS = {
+    'upper' : [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291, 78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308],
+    'lower' : [375, 321, 405, 314, 17, 84, 181, 91, 146, 61, 324, 318, 402, 317, 14, 87, 178, 88, 95, 78]
+}
 
 def draw_landmarks_on_image(rgb_image, detection_result):
   face_landmarks_list = detection_result.face_landmarks
@@ -79,11 +84,17 @@ def draw_landmarks_on_image(rgb_image, detection_result):
 
   return annotated_image
 
-def create_polygon_mask(image, landmarks, indices_list):
+def create_polygon_mask(image, landmark_indices):
     mask = np.zeros(image.shape[:2], dtype=np.uint8)
-    for indices in indices_list:
-        pts = np.array([landmarks[i] for i in indices], dtype=np.int32)
-        cv2.fillPoly(mask, [pts], color=(255))
+    pts = np.array([(int(landmark.x * image.shape[1]), int(landmark.y * image.shape[0])) for landmark in landmark_indices], dtype=np.int32)
+    cv2.fillPoly(mask, [pts], 255)
+    return mask
+
+def create_mask_from_landmarks(image, landmark_points, indices_lists):
+    mask = np.zeros(image.shape[:2], dtype=np.uint8)
+    for indices in indices_lists:
+        pts = np.array([landmark_points[idx] for idx in indices], dtype=np.int32)
+        cv2.fillPoly(mask, [pts], 255)
     return mask
 
 def calculate_iris_radius(iris_landmarks):
@@ -112,7 +123,7 @@ def create_iris_mask(image, iris_landmarks):
     cv2.circle(mask, iris_center, int(iris_radius), color=(255), thickness=-1)
     return mask
 
-def extract_iris_color(image, mask):
+def extract_average_color(image, mask):
     # 마스크를 적용하여 홍채의 색을 추출합니다.
     masked_image = cv2.bitwise_and(image, image, mask=mask)
     return cv2.mean(masked_image, mask=mask)[:3]
@@ -147,19 +158,34 @@ with FaceLandmarker.create_from_options(fl_options) as landmarker:
         # 홍채 마스크 생성을 위한 랜드마크 포인트 리스트 생성
         left_iris_points = [face_landmarks[i] for i in IRIS_LANDMARKS['left']]
         right_iris_points = [face_landmarks[i] for i in IRIS_LANDMARKS['right']]
+        # 랜드마크 포인트 리스트 생성
+        left_eyebrow_points = [face_landmarks[i] for i in EYEBROW_LANDMARKS['left']]
+        right_eyebrow_points = [face_landmarks[i] for i in EYEBROW_LANDMARKS['right']]
+        upper_lip_points = [face_landmarks[i] for i in LIPS_LANDMARKS['upper']]
+        lower_lip_points = [face_landmarks[i] for i in LIPS_LANDMARKS['lower']]
 
         # 홍채 마스크 생성
         left_iris_mask = create_iris_mask(bgr_image, left_iris_points)
         right_iris_mask = create_iris_mask(bgr_image, right_iris_points)
+        left_eyebrow_mask = create_polygon_mask(bgr_image, left_eyebrow_points)
+        right_eyebrow_mask = create_polygon_mask(bgr_image, right_eyebrow_points)
+        upper_lip_mask = create_polygon_mask(bgr_image, upper_lip_points)
+        lower_lip_mask = create_polygon_mask(bgr_image, lower_lip_points)
+
+        eyebrows_mask = cv2.bitwise_or(left_eyebrow_mask, right_eyebrow_mask)
+        lips_mask = cv2.bitwise_or(upper_lip_mask, lower_lip_mask)
 
         # 홍채 색 추출
-        left_iris_color = extract_iris_color(bgr_image, left_iris_mask)
-        right_iris_color = extract_iris_color(bgr_image, right_iris_mask)
-
+        left_iris_color = extract_average_color(bgr_image, left_iris_mask)
+        right_iris_color = extract_average_color(bgr_image, right_iris_mask)
+        average_eyebrows_color = extract_average_color(bgr_image, eyebrows_mask)
+        average_lips_color = extract_average_color(bgr_image, lips_mask)
 
         # 추출된 색상 값 출력
         print(f"Left Iris Color: {left_iris_color}")
         print(f"Right Iris Color: {right_iris_color}")
+        print(f"Eyebrows Average Color: {average_eyebrows_color}")
+        print(f"Lips Average Color: {average_lips_color}")
 
         annotated_image = draw_landmarks_on_image(bgr_image, face_landmarker_result)
 
