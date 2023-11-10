@@ -60,14 +60,7 @@ def create_polygon_mask(image, landmark_indices):
     cv2.fillPoly(mask, [pts], 255)
     return mask
 
-#홍채 반지를 계산 함수
-def calculate_iris_radius(iris_landmarks):
-    # 홍채 중심과 주변 랜드마크 간의 거리를 기반으로 평균 반지름을 계산합니다.
-    center = iris_landmarks[0]
-    radii = [math.hypot(center.x - point.x, center.y - point.y) for point in iris_landmarks[1:]]
-    return np.mean(radii)
-
-#홍채 마스크 생성 함수
+#홍채 반지름 계산 함수
 def calculate_iris_radius(iris_landmarks, image_shape):
     # 홍채 중심과 주변 랜드마크 간의 거리를 기반으로 평균 반지름을 계산합니다.
     # 반지름을 실제 픽셀 단위로 변환하기 위해 이미지의 너비와 높이를 곱합니다.
@@ -79,7 +72,7 @@ def calculate_iris_radius(iris_landmarks, image_shape):
     ]
     return np.mean(radii)
 
-
+#홍채 마스크 생성 함수
 def create_iris_mask(image, iris_landmarks):
     # 이미지에 대한 마스크를 생성합니다.
     mask = np.zeros(image.shape[:2], dtype=np.uint8)
@@ -96,65 +89,63 @@ with ImageSegmenter.create_from_options(is_options) as segmenter, FaceLandmarker
     mp_image = mp.Image.create_from_file('../image/sample2.png')
     numpy_image = mp_image.numpy_view()
 
-    # 이미지 분할
+    # 이미지 분할 및 랜드마크 검출
     segmented_masks = segmenter.segment(mp_image)
+    face_landmarker_result = landmarker.detect(mp_image)
 
     # category_mask 속성
     category_mask = segmented_masks.category_mask
     category_mask_np = category_mask.numpy_view()
 
+    # 카테고리 별 마스크 생성
     hair_mask = np.where(category_mask_np == 1, 255, 0).astype(np.uint8)
     body_skin_mask = np.where(category_mask_np == 2, 255, 0).astype(np.uint8)
     face_skin_mask = np.where(category_mask_np == 3, 255, 0).astype(np.uint8)
-    skin_sum_mask = cv2.bitwise_or(body_skin_mask, face_skin_mask)
     clothes_mask = np.where(category_mask_np == 4, 255, 0).astype(np.uint8)
+
+    # body + face 마스크
+    skin_mask = cv2.bitwise_or(body_skin_mask, face_skin_mask)
+
+    # 평균 색상 추출
     average_hair_color = extract_average_color(numpy_image, hair_mask)
-    average_skin_color_sum = extract_average_color(numpy_image, skin_sum_mask)
+    average_skin_color_sum = extract_average_color(numpy_image, skin_mask)
     average_clothes_color = extract_average_color(numpy_image, clothes_mask)
 
-    print(f"Hair: {average_hair_color}")
-    print(f"Skin_sum:{average_skin_color_sum}")
-    print(f"clothes: {average_clothes_color}")
-
-    # 얼굴 랜드마크 추출
-    face_landmarker_result = landmarker.detect(mp_image)
-    # 검출된 랜드마크가 있는지 확인하고 첫 번째 얼굴의 랜드마크 리스트를 가져옵니다.
+    # 예외처리 -> 검출 결과 확인
     if face_landmarker_result.face_landmarks:
-        # 첫 번째 얼굴 랜드마크를 face_landmarks 변수에 할당합니다.
-        # 여기서 face_landmarks[0]는 첫 번째 랜드마크 리스트를 의미합니다.
+        # 첫번째 얼굴의 랜드마크
         face_landmarks = face_landmarker_result.face_landmarks[0]
 
-        # BGR 이미지로 변환
-        bgr_image = cv2.cvtColor(numpy_image, cv2.COLOR_RGB2BGR)
-
-        # 홍채 마스크 생성을 위한 랜드마크 포인트 리스트 생성
+        # 랜드마크 포인트 리스트 생성
         left_iris_points = [face_landmarks[i] for i in IRIS_LANDMARKS['left']]
         right_iris_points = [face_landmarks[i] for i in IRIS_LANDMARKS['right']]
-        # 랜드마크 포인트 리스트 생성
         left_eyebrow_points = [face_landmarks[i] for i in EYEBROW_LANDMARKS['left']]
         right_eyebrow_points = [face_landmarks[i] for i in EYEBROW_LANDMARKS['right']]
         upper_lip_points = [face_landmarks[i] for i in LIPS_LANDMARKS['upper']]
         lower_lip_points = [face_landmarks[i] for i in LIPS_LANDMARKS['lower']]
 
-        # 홍채 마스크 생성
-        left_iris_mask = create_iris_mask(bgr_image, left_iris_points)
-        right_iris_mask = create_iris_mask(bgr_image, right_iris_points)
-        left_eyebrow_mask = create_polygon_mask(bgr_image, left_eyebrow_points)
-        right_eyebrow_mask = create_polygon_mask(bgr_image, right_eyebrow_points)
-        upper_lip_mask = create_polygon_mask(bgr_image, upper_lip_points)
-        lower_lip_mask = create_polygon_mask(bgr_image, lower_lip_points)
+        # 마스크 생성
+        left_iris_mask = create_iris_mask(numpy_image, left_iris_points)
+        right_iris_mask = create_iris_mask(numpy_image, right_iris_points)
+        left_eyebrow_mask = create_polygon_mask(numpy_image, left_eyebrow_points)
+        right_eyebrow_mask = create_polygon_mask(numpy_image, right_eyebrow_points)
+        upper_lip_mask = create_polygon_mask(numpy_image, upper_lip_points)
+        lower_lip_mask = create_polygon_mask(numpy_image, lower_lip_points)
 
         iris_mask = cv2.bitwise_or(left_iris_mask, right_iris_mask)
         eyebrows_mask = cv2.bitwise_or(left_eyebrow_mask, right_eyebrow_mask)
         lips_mask = cv2.bitwise_or(upper_lip_mask, lower_lip_mask)
 
-        # 홍채 색 추출
-        left_iris_color = extract_average_color(bgr_image, iris_mask)
-        average_eyebrows_color = extract_average_color(bgr_image, eyebrows_mask)
-        average_lips_color = extract_average_color(bgr_image, lips_mask)
+        # 평균 색상 추출
+        average_iris_color = extract_average_color(numpy_image, iris_mask)
+        average_eyebrows_color = extract_average_color(numpy_image, eyebrows_mask)
+        average_lips_color = extract_average_color(numpy_image, lips_mask)
 
         # 추출된 색상 값 출력
-        print(f"Iris Color: {left_iris_color}")
+        print(f"Hair: {average_hair_color}")
+        print(f"Skin_sum:{average_skin_color_sum}")
+        print(f"clothes: {average_clothes_color}")
+        print(f"Iris Color: {average_iris_color}")
         print(f"Eyebrows Average Color: {average_eyebrows_color}")
         print(f"Lips Average Color: {average_lips_color}")
 
