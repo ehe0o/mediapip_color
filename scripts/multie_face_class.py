@@ -19,8 +19,8 @@ VisionRunningMode = mp.tasks.vision.RunningMode
 # ImageSegmenter 옵션 정의
 is_options = ImageSegmenterOptions(
     base_options=BaseOptions(model_asset_path=model_path_1),
-    running_mode=VisionRunningMode.IMAGE, # 작업의 실행 모드 설정 (IMAGE, VIDEO, LIVE_STREAM)
-    output_category_mask=True) #Tru로 설정될 경우 분할 마스크가 uint8로 포함됨.
+    running_mode=VisionRunningMode.IMAGE,
+    output_category_mask=True)
 
 # face_landmarker 옵션 정의
 fl_options = FaceLandmarkerOptions(
@@ -60,8 +60,6 @@ def create_polygon_mask(image, landmark_indices):
 
 #홍채 반지름 계산 함수
 def calculate_iris_radius(iris_landmarks, image_shape):
-    # 홍채 중심과 주변 랜드마크 간의 거리를 기반으로 평균 반지름을 계산합니다.
-    # 반지름을 실제 픽셀 단위로 변환하기 위해 이미지의 너비와 높이를 곱합니다.
     image_width, image_height = image_shape[1], image_shape[0]
     center = iris_landmarks[0]
     radii = [
@@ -72,11 +70,9 @@ def calculate_iris_radius(iris_landmarks, image_shape):
 
 #홍채 마스크 생성 함수
 def create_iris_mask(image, iris_landmarks):
-    # 이미지에 대한 마스크를 생성합니다.
     mask = np.zeros(image.shape[:2], dtype=np.uint8)
     iris_radius = calculate_iris_radius(iris_landmarks, image.shape)
     iris_center = (int(iris_landmarks[0].x * image.shape[1]), int(iris_landmarks[0].y * image.shape[0]))
-    # 마스크에 홍채를 나타내는 원을 그립니다.
     cv2.circle(mask, iris_center, int(iris_radius), color=(255), thickness=-1)
     return mask
 
