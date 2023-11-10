@@ -1,9 +1,6 @@
 import mediapipe as mp
 import numpy as np
 from mediapipe.tasks import python
-from mediapipe import solutions
-from mediapipe.framework.formats import landmark_pb2
-import matplotlib.pyplot as plt
 import cv2
 import math
 
