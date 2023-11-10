@@ -51,7 +51,8 @@ LIPS_LANDMARKS = {
 # 평균 색상 추출 함수
 def extract_average_color(image, mask):
     masked_image = cv2.bitwise_and(image, image, mask=mask)
-    return cv2.mean(masked_image, mask=mask)[:3]
+    mean_color = cv2.mean(masked_image, mask=mask)[:3]
+    return tuple(int(round(c)) for c in mean_color)
 
 #다각형 마스크 생성 함수
 def create_polygon_mask(image, landmark_indices):
