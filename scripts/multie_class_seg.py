@@ -32,30 +32,25 @@ with ImageSegmenter.create_from_options(options) as segmenter:
 
     # 원본 이미지 가져오기 (알파 채널 제거)
     original_image = mp_image.numpy_view()
-    original_image = original_image[:, :, :3]  # 알파 채널 제거 -> addWeight를 위한 작업
 
     # 이미지 분할
     segmented_masks = segmenter.segment(mp_image)
-    print(segmented_masks)
 
     # 결과값에서 category_mask 속성 가져오기
     category_mask = segmented_masks.category_mask
     category_mask_np = category_mask.numpy_view()
 
     hair_mask = np.where(category_mask_np == 1, 255, 0).astype(np.uint8)
-    skin_mask = np.where(category_mask_np == 2, 255, 0).astype(np.uint8)
-    skin2_mask = np.where(category_mask_np == 3, 255, 0).astype(np.uint8)
-    skin_sum_mask = skin_mask + skin2_mask
+    body_skin_mask = np.where(category_mask_np == 2, 255, 0).astype(np.uint8)
+    face_skin_mask = np.where(category_mask_np == 3, 255, 0).astype(np.uint8)
+    skin_sum_mask = cv2.bitwise_or(body_skin_mask, face_skin_mask)
+    clothes_mask = np.where(category_mask_np == 4, 255, 0).astype(np.uint8)
     average_hair_color = extract_average_color(original_image, hair_mask)
-    average_skin_color = extract_average_color(original_image, skin_mask)
-    average_skin_color2 = extract_average_color(original_image, skin2_mask)
     average_skin_color_sum = extract_average_color(original_image, skin_sum_mask)
+    average_clothes_color = extract_average_color(original_image, clothes_mask)
 
-    print(f"Hair: {average_hair_color}, Skin_sum:{average_skin_color_sum}, Face :{average_skin_color2}, Body:{average_skin_color}")
-
-    # 각 카테고리 존재 여부 확인
-    for i in range(len(category)):
-        is_present = np.isin(category_mask_np, i).any()
-        print(f"{category[i]} 존재 여부 : {is_present}")
+    print(f"Hair: {average_hair_color}")
+    print(f"Skin_sum:{average_skin_color_sum}")
+    print(f"clothes: {average_clothes_color}")
 
 

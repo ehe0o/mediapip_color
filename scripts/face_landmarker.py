@@ -90,12 +90,6 @@ def create_polygon_mask(image, landmark_indices):
     cv2.fillPoly(mask, [pts], 255)
     return mask
 
-def create_mask_from_landmarks(image, landmark_points, indices_lists):
-    mask = np.zeros(image.shape[:2], dtype=np.uint8)
-    for indices in indices_lists:
-        pts = np.array([landmark_points[idx] for idx in indices], dtype=np.int32)
-        cv2.fillPoly(mask, [pts], 255)
-    return mask
 
 def calculate_iris_radius(iris_landmarks):
     # 홍채 중심과 주변 랜드마크 간의 거리를 기반으로 평균 반지름을 계산합니다.
@@ -124,7 +118,6 @@ def create_iris_mask(image, iris_landmarks):
     return mask
 
 def extract_average_color(image, mask):
-    # 마스크를 적용하여 홍채의 색을 추출합니다.
     masked_image = cv2.bitwise_and(image, image, mask=mask)
     return cv2.mean(masked_image, mask=mask)[:3]
 
@@ -172,18 +165,17 @@ with FaceLandmarker.create_from_options(fl_options) as landmarker:
         upper_lip_mask = create_polygon_mask(bgr_image, upper_lip_points)
         lower_lip_mask = create_polygon_mask(bgr_image, lower_lip_points)
 
+        iris_mask = cv2.bitwise_or(left_iris_mask, right_iris_mask)
         eyebrows_mask = cv2.bitwise_or(left_eyebrow_mask, right_eyebrow_mask)
         lips_mask = cv2.bitwise_or(upper_lip_mask, lower_lip_mask)
 
         # 홍채 색 추출
-        left_iris_color = extract_average_color(bgr_image, left_iris_mask)
-        right_iris_color = extract_average_color(bgr_image, right_iris_mask)
+        left_iris_color = extract_average_color(bgr_image, iris_mask)
         average_eyebrows_color = extract_average_color(bgr_image, eyebrows_mask)
         average_lips_color = extract_average_color(bgr_image, lips_mask)
 
         # 추출된 색상 값 출력
-        print(f"Left Iris Color: {left_iris_color}")
-        print(f"Right Iris Color: {right_iris_color}")
+        print(f"Iris Color: {left_iris_color}")
         print(f"Eyebrows Average Color: {average_eyebrows_color}")
         print(f"Lips Average Color: {average_lips_color}")
 
